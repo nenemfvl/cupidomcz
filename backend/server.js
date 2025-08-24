@@ -55,11 +55,25 @@ mongoose.connect(process.env.MONGODB_URI, {
   .catch(err => console.error('❌ Erro ao conectar ao MongoDB:', err));
 
 // Rotas
+console.log('🔧 Carregando rotas de autenticação...');
 app.use('/api/auth', require('./routes/auth'));
+console.log('✅ Rotas de autenticação carregadas!');
+
+console.log('🔧 Carregando rotas de usuários...');
 app.use('/api/users', require('./routes/users'));
+console.log('✅ Rotas de usuários carregadas!');
+
+console.log('🔧 Carregando rotas de matches...');
 app.use('/api/matches', require('./routes/matches'));
+console.log('✅ Rotas de matches carregadas!');
+
+console.log('🔧 Carregando rotas de chat...');
 app.use('/api/chat', require('./routes/chat'));
+console.log('✅ Rotas de chat carregadas!');
+
+console.log('🔧 Carregando rotas de discovery...');
 app.use('/api/discovery', require('./routes/discovery'));
+console.log('✅ Rotas de discovery carregadas!');
 
 console.log('🔧 Carregando rotas de upload...');
 app.use('/api/upload', require('./routes/upload'));
