@@ -1,19 +1,37 @@
 const nodemailer = require('nodemailer');
 
-// Configuração do transporter (Gmail) otimizada para velocidade
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  // Configurações otimizadas para velocidade
-  connectionTimeout: 30000, // 30 segundos
-  greetingTimeout: 15000,   // 15 segundos
-  socketTimeout: 30000,     // 30 segundos
-  // Sem pool para conexões mais diretas
-  pool: false
-});
+// Configuração do transporter com múltiplas opções
+const createTransporter = () => {
+  // Opção 1: Gmail (padrão)
+  if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+    return nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS
+      },
+      // Configurações otimizadas para velocidade
+      connectionTimeout: 30000, // 30 segundos
+      greetingTimeout: 15000,   // 15 segundos
+      socketTimeout: 30000,     // 30 segundos
+      // Sem pool para conexões mais diretas
+      pool: false
+    });
+  }
+  
+  // Opção 2: Ethereal (para testes)
+  return nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: {
+      user: 'test@ethereal.email',
+      pass: 'test123'
+    }
+  });
+};
+
+const transporter = createTransporter();
 
 // Verificar conexão
 transporter.verify(function(error, success) {
