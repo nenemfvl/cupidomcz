@@ -33,6 +33,16 @@ app.get('/api/debug', (req, res) => {
   });
 });
 
+// Rota de teste de auth diretamente no servidor
+app.post('/api/auth-test', (req, res) => {
+  res.json({ 
+    message: 'Auth test funcionando!', 
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    path: req.path
+  });
+});
+
 // Rota de teste
 app.get('/api/test', (req, res) => {
   res.json({ 
