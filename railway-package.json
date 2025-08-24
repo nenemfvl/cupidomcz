@@ -1,0 +1,18 @@
+{
+  "name": "cupidomcz-railway",
+  "version": "1.0.0",
+  "description": "Cupido Maceió - Backend para Railway",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "build": "cd backend && npm install",
+    "dev": "cd backend && npm run dev"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
+  "keywords": ["dating", "social", "maceio", "railway"],
+  "author": "Cupido Maceió",
+  "license": "MIT"
+}
