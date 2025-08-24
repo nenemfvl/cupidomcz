@@ -1,77 +1,69 @@
 const express = require('express');
-const Match = require('../models/Match');
-const User = require('../models/User');
 const auth = require('../middleware/auth');
+const User = require('../models/User');
+const Match = require('../models/Match');
+const Message = require('../models/Message');
 
 const router = express.Router();
 
-// @route   GET /api/chat/conversations
-// @desc    Obter todas as conversas do usuário
-// @access  Private
+// GET /api/chat/conversations - Obter todas as conversas do usuário
 router.get('/conversations', auth, async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
-    
-    // Buscar matches com mensagens
+    const currentUserId = req.user.id;
+
+    // Buscar matches do usuário
     const matches = await Match.find({
-      users: req.user.id,
-      status: 'matched',
-      'messages.0': { $exists: true } // Pelo menos uma mensagem
-    })
-    .populate('users', 'name age photos location interests occupation isVerified lastActive')
-    .populate('messages.sender', 'name photos')
-    .sort({ lastInteraction: -1 })
-    .limit(parseInt(limit))
-    .skip((parseInt(page) - 1) * parseInt(limit));
+      $or: [
+        { user1: currentUserId, status: 'matched' },
+        { user2: currentUserId, status: 'matched' }
+      ]
+    }).populate('user1', 'name age gender photos')
+      .populate('user2', 'name age gender photos');
 
-    // Contar total
-    const total = await Match.countDocuments({
-      users: req.user.id,
-      status: 'matched',
-      'messages.0': { $exists: true }
+    // Buscar última mensagem de cada conversa
+    const conversations = await Promise.all(
+      matches.map(async (match) => {
+        const otherUser = match.user1._id.toString() === currentUserId ? match.user2 : match.user1;
+        
+        const lastMessage = await Message.findOne({
+          matchId: match._id
+        }).sort({ createdAt: -1 });
+
+        const unreadCount = await Message.countDocuments({
+          matchId: match._id,
+          sender: { $ne: currentUserId },
+          isRead: false
+        });
+
+        return {
+          matchId: match._id,
+          user: {
+            id: otherUser._id,
+            name: otherUser.name,
+            age: otherUser.age,
+            gender: otherUser.gender,
+            photos: otherUser.photos
+          },
+          lastMessage: lastMessage ? {
+            content: lastMessage.content,
+            timestamp: lastMessage.createdAt,
+            sender: lastMessage.sender
+          } : null,
+          unreadCount,
+          matchedAt: match.matchedAt
+        };
+      })
+    );
+
+    // Ordenar por última mensagem (mais recente primeiro)
+    conversations.sort((a, b) => {
+      if (!a.lastMessage && !b.lastMessage) return 0;
+      if (!a.lastMessage) return 1;
+      if (!b.lastMessage) return -1;
+      return new Date(b.lastMessage.timestamp) - new Date(a.lastMessage.timestamp);
     });
 
-    // Formatar conversas
-    const conversations = matches.map(match => {
-      const otherUser = match.users.find(user => user._id.toString() !== req.user.id);
-      const lastMessage = match.messages[match.messages.length - 1];
-      const unreadCount = match.messages.filter(msg => 
-        !msg.isRead && msg.sender._id.toString() !== req.user.id
-      ).length;
-
-      return {
-        id: match._id,
-        otherUser: {
-          id: otherUser._id,
-          name: otherUser.name,
-          age: otherUser.age,
-          photos: otherUser.photos,
-          location: otherUser.location,
-          interests: otherUser.interests,
-          occupation: otherUser.occupation,
-          isVerified: otherUser.isVerified,
-          lastActive: otherUser.lastActive
-        },
-        lastMessage: lastMessage ? {
-          content: lastMessage.content,
-          sender: lastMessage.sender.name,
-          timestamp: lastMessage.timestamp,
-          isRead: lastMessage.isRead
-        } : null,
-        unreadCount,
-        lastInteraction: match.lastInteraction,
-        matchedAt: match.matchedAt
-      };
-    });
-
-    res.json({
-      conversations,
-      pagination: {
-        current: parseInt(page),
-        total: Math.ceil(total / parseInt(limit)),
-        hasMore: parseInt(page) * parseInt(limit) < total
-      }
-    });
+    res.json({ conversations });
 
   } catch (error) {
     console.error('Erro ao buscar conversas:', error);
@@ -79,95 +71,54 @@ router.get('/conversations', auth, async (req, res) => {
   }
 });
 
-// @route   GET /api/chat/conversation/:matchId
-// @desc    Obter mensagens de uma conversa específica
-// @access  Private
-router.get('/conversation/:matchId', auth, async (req, res) => {
+// GET /api/chat/messages/:matchId - Obter mensagens de uma conversa
+router.get('/messages/:matchId', auth, async (req, res) => {
   try {
-    const { page = 1, limit = 50 } = req.query;
-    
-    const match = await Match.findById(req.params.matchId)
-      .populate('users', 'name age photos location interests occupation isVerified lastActive')
-      .populate('messages.sender', 'name photos');
+    const { matchId } = req.params;
+    const currentUserId = req.user.id;
 
-    if (!match) {
-      return res.status(404).json({ error: 'Conversa não encontrada' });
-    }
-
-    // Verificar se o usuário faz parte do match
-    if (!match.users.some(user => user._id.toString() === req.user.id)) {
-      return res.status(403).json({ error: 'Não autorizado a acessar esta conversa' });
-    }
-
-    // Verificar se o match está ativo
-    if (match.status !== 'matched') {
-      return res.status(400).json({ error: 'Esta conversa não está mais ativa' });
-    }
-
-    // Marcar mensagens como lidas
-    await match.markMessagesAsRead(req.user.id);
-
-    // Formatar usuário da conversa
-    const otherUser = match.users.find(user => user._id.toString() !== req.user.id);
-    
-    // Paginar mensagens (mais recentes primeiro)
-    const totalMessages = match.messages.length;
-    const startIndex = totalMessages - (parseInt(page) * parseInt(limit));
-    const endIndex = totalMessages - ((parseInt(page) - 1) * parseInt(limit));
-    
-    const messages = match.messages
-      .slice(Math.max(0, startIndex), endIndex)
-      .reverse()
-      .map(msg => ({
-        id: msg._id,
-        content: msg.content,
-        sender: {
-          id: msg.sender._id,
-          name: msg.sender.name,
-          photos: msg.sender.photos
-        },
-        timestamp: msg.timestamp,
-        isRead: msg.isRead
-      }));
-
-    res.json({
-      conversation: {
-        id: match._id,
-        otherUser: {
-          id: otherUser._id,
-          name: otherUser.name,
-          age: otherUser.age,
-          photos: otherUser.photos,
-          location: otherUser.location,
-          interests: otherUser.interests,
-          occupation: otherUser.occupation,
-          isVerified: otherUser.isVerified,
-          lastActive: otherUser.lastActive
-        },
-        matchedAt: match.matchedAt,
-        lastInteraction: match.lastInteraction
-      },
-      messages,
-      pagination: {
-        current: parseInt(page),
-        total: Math.ceil(totalMessages / parseInt(limit)),
-        hasMore: startIndex > 0
-      }
+    // Verificar se o usuário tem acesso a este match
+    const match = await Match.findOne({
+      _id: matchId,
+      $or: [
+        { user1: currentUserId, status: 'matched' },
+        { user2: currentUserId, status: 'matched' }
+      ]
     });
 
+    if (!match) {
+      return res.status(403).json({ error: 'Acesso negado a esta conversa' });
+    }
+
+    // Buscar mensagens
+    const messages = await Message.find({ matchId })
+      .populate('sender', 'name')
+      .sort({ createdAt: 1 });
+
+    // Marcar mensagens como lidas
+    await Message.updateMany(
+      {
+        matchId,
+        sender: { $ne: currentUserId },
+        isRead: false
+      },
+      { isRead: true }
+    );
+
+    res.json({ messages });
+
   } catch (error) {
-    console.error('Erro ao buscar conversa:', error);
+    console.error('Erro ao buscar mensagens:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 
-// @route   POST /api/chat/conversation/:matchId/message
-// @desc    Enviar mensagem em uma conversa
-// @access  Private
-router.post('/conversation/:matchId/message', auth, async (req, res) => {
+// POST /api/chat/message - Enviar mensagem
+router.post('/message', auth, async (req, res) => {
   try {
-    const { content } = req.body;
-    
+    const { matchId, content } = req.body;
+    const currentUserId = req.user.id;
+
     if (!content || content.trim().length === 0) {
       return res.status(400).json({ error: 'Mensagem não pode estar vazia' });
     }
@@ -176,43 +127,40 @@ router.post('/conversation/:matchId/message', auth, async (req, res) => {
       return res.status(400).json({ error: 'Mensagem muito longa (máximo 1000 caracteres)' });
     }
 
-    const match = await Match.findById(req.params.matchId);
+    // Verificar se o usuário tem acesso a este match
+    const match = await Match.findOne({
+      _id: matchId,
+      $or: [
+        { user1: currentUserId, status: 'matched' },
+        { user2: currentUserId, status: 'matched' }
+      ]
+    });
+
     if (!match) {
-      return res.status(404).json({ error: 'Conversa não encontrada' });
+      return res.status(403).json({ error: 'Acesso negado a esta conversa' });
     }
 
-    // Verificar se o usuário faz parte do match
-    if (!match.users.some(user => user.toString() === req.user.id)) {
-      return res.status(403).json({ error: 'Não autorizado a enviar mensagem nesta conversa' });
-    }
+    // Criar mensagem
+    const message = new Message({
+      matchId,
+      sender: currentUserId,
+      content: content.trim(),
+      isRead: false
+    });
 
-    // Verificar se o match está ativo
-    if (match.status !== 'matched') {
-      return res.status(400).json({ error: 'Não é possível enviar mensagem nesta conversa' });
-    }
+    await message.save();
 
-    // Adicionar mensagem
-    await match.addMessage(req.user.id, content.trim());
+    // Atualizar último acesso do match
+    match.lastInteraction = new Date();
+    await match.save();
 
-    // Buscar match atualizado
-    const updatedMatch = await Match.findById(req.params.matchId)
-      .populate('messages.sender', 'name photos');
+    // Retornar mensagem com dados do remetente
+    const populatedMessage = await Message.findById(message._id)
+      .populate('sender', 'name');
 
-    const newMessage = updatedMatch.messages[updatedMatch.messages.length - 1];
-
-    res.json({
-      message: 'Mensagem enviada com sucesso!',
-      newMessage: {
-        id: newMessage._id,
-        content: newMessage.content,
-        sender: {
-          id: newMessage.sender._id,
-          name: newMessage.sender.name,
-          photos: newMessage.sender.photos
-        },
-        timestamp: newMessage.timestamp,
-        isRead: newMessage.isRead
-      }
+    res.status(201).json({
+      message: 'Mensagem enviada com sucesso',
+      data: populatedMessage
     });
 
   } catch (error) {
@@ -221,172 +169,90 @@ router.post('/conversation/:matchId/message', auth, async (req, res) => {
   }
 });
 
-// @route   PUT /api/chat/conversation/:matchId/read
-// @desc    Marcar mensagens como lidas
-// @access  Private
-router.put('/conversation/:matchId/read', auth, async (req, res) => {
+// PUT /api/chat/message/:messageId/read - Marcar mensagem como lida
+router.put('/message/:messageId/read', auth, async (req, res) => {
   try {
-    const match = await Match.findById(req.params.matchId);
-    if (!match) {
-      return res.status(404).json({ error: 'Conversa não encontrada' });
-    }
+    const { messageId } = req.params;
+    const currentUserId = req.user.id;
 
-    // Verificar se o usuário faz parte do match
-    if (!match.users.some(user => user.toString() === req.user.id)) {
-      return res.status(403).json({ error: 'Não autorizado a acessar esta conversa' });
-    }
-
-    // Marcar mensagens como lidas
-    await match.markMessagesAsRead(req.user.id);
-
-    res.json({
-      message: 'Mensagens marcadas como lidas',
-      unreadCount: 0
-    });
-
-  } catch (error) {
-    console.error('Erro ao marcar mensagens como lidas:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-  }
-});
-
-// @route   GET /api/chat/unread-count
-// @desc    Obter contagem de mensagens não lidas
-// @access  Private
-router.get('/unread-count', auth, async (req, res) => {
-  try {
-    // Contar mensagens não lidas em todos os matches
-    const unreadCount = await Match.aggregate([
-      { $match: { users: req.user.id } },
-      { $unwind: '$messages' },
-      {
-        $match: {
-          'messages.sender': { $ne: req.user.id },
-          'messages.isRead': false
-        }
-      },
-      { $count: 'total' }
-    ]);
-
-    res.json({
-      unreadCount: unreadCount[0]?.total || 0
-    });
-
-  } catch (error) {
-    console.error('Erro ao contar mensagens não lidas:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-  }
-});
-
-// @route   GET /api/chat/search
-// @desc    Pesquisar mensagens
-// @access  Private
-router.get('/search', auth, async (req, res) => {
-  try {
-    const { query, page = 1, limit = 20 } = req.query;
-    
-    if (!query || query.trim().length < 2) {
-      return res.status(400).json({ error: 'Termo de pesquisa deve ter pelo menos 2 caracteres' });
-    }
-
-    // Buscar matches com mensagens que contenham o termo
-    const matches = await Match.find({
-      users: req.user.id,
-      status: 'matched',
-      'messages.content': { $regex: query, $options: 'i' }
-    })
-    .populate('users', 'name age photos')
-    .populate('messages.sender', 'name');
-
-    // Filtrar e formatar resultados
-    const searchResults = [];
-    
-    matches.forEach(match => {
-      const otherUser = match.users.find(user => user._id.toString() !== req.user.id);
-      
-      match.messages.forEach(message => {
-        if (message.content.toLowerCase().includes(query.toLowerCase())) {
-          searchResults.push({
-            matchId: match._id,
-            otherUser: {
-              id: otherUser._id,
-              name: otherUser.name,
-              photos: otherUser.photos
-            },
-            message: {
-              id: message._id,
-              content: message.content,
-              sender: message.sender.name,
-              timestamp: message.timestamp
-            }
-          });
-        }
-      });
-    });
-
-    // Ordenar por timestamp (mais recente primeiro)
-    searchResults.sort((a, b) => new Date(b.message.timestamp) - new Date(a.message.timestamp));
-
-    // Paginar resultados
-    const total = searchResults.length;
-    const startIndex = (parseInt(page) - 1) * parseInt(limit);
-    const endIndex = startIndex + parseInt(limit);
-    const paginatedResults = searchResults.slice(startIndex, endIndex);
-
-    res.json({
-      results: paginatedResults,
-      pagination: {
-        current: parseInt(page),
-        total: Math.ceil(total / parseInt(limit)),
-        hasMore: endIndex < total
-      }
-    });
-
-  } catch (error) {
-    console.error('Erro ao pesquisar mensagens:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-  }
-});
-
-// @route   DELETE /api/chat/conversation/:matchId/message/:messageId
-// @desc    Deletar uma mensagem específica
-// @access  Private
-router.delete('/conversation/:matchId/message/:messageId', auth, async (req, res) => {
-  try {
-    const match = await Match.findById(req.params.matchId);
-    if (!match) {
-      return res.status(404).json({ error: 'Conversa não encontrada' });
-    }
-
-    // Verificar se o usuário faz parte do match
-    if (!match.users.some(user => user.toString() === req.user.id)) {
-      return res.status(403).json({ error: 'Não autorizado a deletar mensagem nesta conversa' });
-    }
-
-    // Encontrar a mensagem
-    const messageIndex = match.messages.findIndex(msg => 
-      msg._id.toString() === req.params.messageId
-    );
-
-    if (messageIndex === -1) {
+    const message = await Message.findById(messageId);
+    if (!message) {
       return res.status(404).json({ error: 'Mensagem não encontrada' });
     }
 
-    // Verificar se o usuário é o autor da mensagem
-    if (match.messages[messageIndex].sender.toString() !== req.user.id) {
-      return res.status(403).json({ error: 'Não autorizado a deletar mensagem de outro usuário' });
-    }
-
-    // Deletar mensagem
-    match.messages.splice(messageIndex, 1);
-    await match.save();
-
-    res.json({
-      message: 'Mensagem deletada com sucesso!'
+    // Verificar se o usuário tem acesso a esta mensagem
+    const match = await Match.findOne({
+      _id: message.matchId,
+      $or: [
+        { user1: currentUserId, status: 'matched' },
+        { user2: currentUserId, status: 'matched' }
+      ]
     });
 
+    if (!match) {
+      return res.status(403).json({ error: 'Acesso negado a esta mensagem' });
+    }
+
+    // Marcar como lida
+    message.isRead = true;
+    await message.save();
+
+    res.json({ message: 'Mensagem marcada como lida' });
+
   } catch (error) {
-    console.error('Erro ao deletar mensagem:', error);
+    console.error('Erro ao marcar mensagem como lida:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// DELETE /api/chat/message/:messageId - Excluir mensagem
+router.delete('/message/:messageId', auth, async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const currentUserId = req.user.id;
+
+    const message = await Message.findById(messageId);
+    if (!message) {
+      return res.status(404).json({ error: 'Mensagem não encontrada' });
+    }
+
+    // Verificar se o usuário é o remetente da mensagem
+    if (message.sender.toString() !== currentUserId) {
+      return res.status(403).json({ error: 'Só pode excluir suas próprias mensagens' });
+    }
+
+    await Message.findByIdAndDelete(messageId);
+
+    res.json({ message: 'Mensagem excluída com sucesso' });
+
+  } catch (error) {
+    console.error('Erro ao excluir mensagem:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// GET /api/chat/unread-count - Contar mensagens não lidas
+router.get('/unread-count', auth, async (req, res) => {
+  try {
+    const currentUserId = req.user.id;
+
+    const unreadCount = await Message.countDocuments({
+      sender: { $ne: currentUserId },
+      isRead: false,
+      matchId: {
+        $in: await Match.find({
+          $or: [
+            { user1: currentUserId, status: 'matched' },
+            { user2: currentUserId, status: 'matched' }
+          ]
+        }).distinct('_id')
+      }
+    });
+
+    res.json({ unreadCount });
+
+  } catch (error) {
+    console.error('Erro ao contar mensagens não lidas:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
