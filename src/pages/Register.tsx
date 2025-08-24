@@ -64,7 +64,8 @@ const Register: React.FC = () => {
             city: formData.city,
             state: formData.state
           }
-        }
+        },
+        wantsChildren: 'talvez' // Valor válido do enum
       };
 
       await register(userData);
