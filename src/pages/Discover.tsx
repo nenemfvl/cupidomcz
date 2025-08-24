@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Heart, X, Star, MapPin, MessageCircle, Filter, RefreshCw } from 'lucide-react';
+import { Heart, X, Star, MapPin, Filter, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 

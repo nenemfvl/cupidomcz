@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Heart, MessageCircle, MapPin, Star, Calendar, RefreshCw } from 'lucide-react';
+import { Heart, MessageCircle, Calendar, RefreshCw } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 

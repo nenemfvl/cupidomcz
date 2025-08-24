@@ -133,23 +133,7 @@ const Chat: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  // Formatar data
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    if (diffDays === 1) return 'Hoje';
-    if (diffDays === 2) return 'Ontem';
-    if (diffDays <= 7) return `${diffDays - 1} dias atrás`;
-    
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit'
-    });
-  };
+  // Formatar data (removido pois não está sendo usado)
 
   // Formatar hora
   const formatTime = (dateString: string) => {
@@ -372,18 +356,18 @@ const Chat: React.FC = () => {
                 {messages.map((message) => (
                   <div
                     key={message._id}
-                    className={`flex ${message.sender._id === user.id ? 'justify-end' : 'justify-start'}`}
+                    className={`flex ${message.sender._id === user._id ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
                       className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
-                        message.sender._id === user.id
+                        message.sender._id === user._id
                           ? 'bg-pink-500 text-white'
                           : 'bg-gray-200 text-gray-900'
                       }`}
                     >
                       <p className="text-sm">{message.content}</p>
                       <p className={`text-xs mt-1 ${
-                        message.sender._id === user.id ? 'text-pink-100' : 'text-gray-500'
+                        message.sender._id === user._id ? 'text-pink-100' : 'text-gray-500'
                       }`}>
                         {formatTime(message.createdAt)}
                       </p>
