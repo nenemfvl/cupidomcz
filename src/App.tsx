@@ -2,6 +2,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import Navbar from './components/Navbar'
+import Footer from './components/Footer'
 import Home from './pages/Home'
 import Login from './pages/Login'
 import Register from './pages/Register'
@@ -14,9 +15,9 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gradient-to-br from-pink-50 to-red-50">
+        <div className="min-h-screen bg-gradient-to-br from-pink-50 to-red-50 flex flex-col">
           <Navbar />
-          <main className="container mx-auto px-4 py-8">
+          <main className="flex-1 container mx-auto px-4 py-8">
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -27,6 +28,7 @@ function App() {
               <Route path="/chat" element={<Chat />} />
             </Routes>
           </main>
+          <Footer />
         </div>
       </Router>
     </AuthProvider>
