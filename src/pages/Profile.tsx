@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Camera, Upload, X, Star, Trash2 } from 'lucide-react';
+import { Camera, Upload, Star, Trash2 } from 'lucide-react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 
@@ -74,7 +74,7 @@ const Profile: React.FC = () => {
         updatedUser.photos.push({
           url: response.data.photoUrl,
           isMain,
-          uploadedAt: new Date(),
+          uploadedAt: new Date().toISOString(),
         });
 
         await updateUser(updatedUser);
