@@ -10,13 +10,18 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   },
   // Configurações de timeout e retry
-  connectionTimeout: 60000, // 60 segundos
-  greetingTimeout: 30000,   // 30 segundos
-  socketTimeout: 60000,     // 60 segundos
+  connectionTimeout: 120000, // 2 minutos
+  greetingTimeout: 60000,    // 1 minuto
+  socketTimeout: 120000,     // 2 minutos
   // Configurações de TLS
   tls: {
-    rejectUnauthorized: false
-  }
+    rejectUnauthorized: false,
+    ciphers: 'SSLv3'
+  },
+  // Configurações de pool
+  pool: true,
+  maxConnections: 5,
+  maxMessages: 100
 });
 
 // Verificar conexão
