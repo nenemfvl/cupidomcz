@@ -15,6 +15,9 @@ const generateToken = (userId) => {
 // @access  Public
 router.post('/register', async (req, res) => {
   try {
+    // DEBUG: Log dos dados recebidos
+    console.log('🔍 DADOS RECEBIDOS:', JSON.stringify(req.body, null, 2));
+    
     const {
       name,
       email,
@@ -40,19 +43,26 @@ router.post('/register', async (req, res) => {
     // Verificar se usuário já existe
     const existingUser = await User.findOne({ email });
     if (existingUser) {
+      console.log('❌ Email já existe:', email);
       return res.status(400).json({ error: 'Email já está em uso' });
     }
 
     // Validar coordenadas de localização (Maceió)
     if (!location || !location.coordinates || location.coordinates.length !== 2) {
+      console.log('❌ Localização inválida:', location);
       return res.status(400).json({ error: 'Localização é obrigatória' });
     }
 
     // Verificar se está dentro da área de Maceió (aproximadamente)
     const [longitude, latitude] = location.coordinates;
+    console.log('📍 Coordenadas:', { longitude, latitude });
+    
     if (latitude < -9.8 || latitude > -9.5 || longitude < -35.9 || longitude > -35.6) {
+      console.log('❌ Coordenadas fora de Maceió:', { latitude, longitude });
       return res.status(400).json({ error: 'Localização deve ser em Maceió, AL' });
     }
+    
+    console.log('✅ Coordenadas válidas!');
 
     // Criar novo usuário
     const user = new User({
