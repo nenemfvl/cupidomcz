@@ -1,7 +1,9 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 const router = express.Router();
 
@@ -77,6 +79,10 @@ router.post('/register', async (req, res) => {
     
     console.log('✅ Coordenadas válidas!');
 
+    // Gerar token de verificação
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+
     // Criar novo usuário
     const user = new User({
       name,
@@ -94,9 +100,11 @@ router.post('/register', async (req, res) => {
       smoking: smoking || 'não fumo',
       drinking: drinking || 'não bebo',
       hasChildren: hasChildren || false,
-      wantsChildren: wantsChildren || 'prefiro não informar',
+      wantsChildren: wantsChildren || 'talvez',
       religion: religion || '',
       politicalViews: politicalViews || 'prefiro não informar',
+      verificationToken,
+      verificationTokenExpires,
       location: {
         type: 'Point',
         coordinates: location.coordinates,
@@ -110,7 +118,13 @@ router.post('/register', async (req, res) => {
 
     await user.save();
 
-    // Gerar token
+    // Enviar email de verificação
+    const emailSent = await sendVerificationEmail(email, name, verificationToken);
+    if (!emailSent) {
+      console.log('⚠️ Usuário criado mas email não foi enviado:', email);
+    }
+
+    // Gerar token de acesso (temporário até verificação)
     const token = generateToken(user._id);
 
     // Retornar usuário (sem senha) e token
@@ -118,9 +132,10 @@ router.post('/register', async (req, res) => {
     delete userResponse.password;
 
     res.status(201).json({
-      message: 'Usuário registrado com sucesso!',
+      message: 'Usuário registrado com sucesso! Verifique seu email para ativar sua conta.',
       user: userResponse,
-      token
+      token,
+      requiresVerification: true
     });
 
   } catch (error) {
@@ -157,6 +172,14 @@ router.post('/login', async (req, res) => {
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Credenciais inválidas' });
+    }
+
+    // Verificar se conta está ativa
+    if (!user.isVerified) {
+      return res.status(403).json({ 
+        error: 'Conta não verificada. Verifique seu email para ativar sua conta.',
+        requiresVerification: true
+      });
     }
 
     // Atualizar última atividade
@@ -275,6 +298,91 @@ router.post('/change-password', auth, async (req, res) => {
 
   } catch (error) {
     console.error('Erro ao alterar senha:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// @route   GET /api/auth/verify-email
+// @desc    Verificar email com token
+// @access  Public
+router.get('/verify-email/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    // Buscar usuário com o token de verificação
+    const user = await User.findOne({
+      verificationToken: token,
+      verificationTokenExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ error: 'Token de verificação inválido ou expirado' });
+    }
+
+    // Marcar usuário como verificado
+    user.isVerified = true;
+    user.verificationToken = undefined;
+    user.verificationTokenExpires = undefined;
+    await user.save();
+
+    res.json({
+      message: 'Email verificado com sucesso! Sua conta está ativa.',
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isVerified: user.isVerified
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro na verificação de email:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// @route   POST /api/auth/resend-verification
+// @desc    Reenviar email de verificação
+// @access  Public
+router.post('/resend-verification', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email é obrigatório' });
+    }
+
+    // Buscar usuário
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ error: 'Usuário já está verificado' });
+    }
+
+    // Gerar novo token de verificação
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+
+    // Atualizar usuário
+    user.verificationToken = verificationToken;
+    user.verificationTokenExpires = verificationTokenExpires;
+    await user.save();
+
+    // Enviar novo email de verificação
+    const emailSent = await sendVerificationEmail(email, user.name, verificationToken);
+    if (!emailSent) {
+      return res.status(500).json({ error: 'Erro ao enviar email de verificação' });
+    }
+
+    res.json({
+      message: 'Email de verificação reenviado com sucesso!'
+    });
+
+  } catch (error) {
+    console.error('Erro ao reenviar verificação:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
