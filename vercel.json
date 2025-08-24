@@ -20,6 +20,6 @@
     }
   ],
   "env": {
-    "VITE_API_URL": "@vercel_api_url"
+    "VITE_API_URL": "https://cupidomcz-production.up.railway.app"
   }
 }
