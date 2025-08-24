@@ -24,6 +24,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// Rota de teste simples para debug
+app.get('/api/debug', (req, res) => {
+  res.json({ 
+    message: 'Debug funcionando!', 
+    timestamp: new Date().toISOString(),
+    routes: ['/api/test', '/api/health', '/api/debug']
+  });
+});
+
 // Rota de teste
 app.get('/api/test', (req, res) => {
   res.json({ 
