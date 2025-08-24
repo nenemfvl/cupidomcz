@@ -1,11 +1,30 @@
 const nodemailer = require('nodemailer');
 
-// Configuração do transporter (Gmail)
+// Configuração do transporter (Gmail) com configurações robustas
 const transporter = nodemailer.createTransport({
   service: 'gmail',
+  port: 587,
+  secure: false, // true para 465, false para outras portas
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
+  },
+  // Configurações de timeout e retry
+  connectionTimeout: 60000, // 60 segundos
+  greetingTimeout: 30000,   // 30 segundos
+  socketTimeout: 60000,     // 60 segundos
+  // Configurações de TLS
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+// Verificar conexão
+transporter.verify(function(error, success) {
+  if (error) {
+    console.log('❌ Erro na configuração do email:', error);
+  } else {
+    console.log('✅ Servidor de email pronto para enviar mensagens');
   }
 });
 
