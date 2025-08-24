@@ -41,7 +41,16 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // Conectar ao MongoDB
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/cupido-maceio')
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 30000, // 30 segundos
+  socketTimeoutMS: 45000, // 45 segundos
+  connectTimeoutMS: 30000, // 30 segundos
+  maxPoolSize: 10,
+  retryWrites: true,
+  w: 'majority'
+});
   .then(() => console.log('✅ Conectado ao MongoDB'))
   .catch(err => console.error('❌ Erro ao conectar ao MongoDB:', err));
 
