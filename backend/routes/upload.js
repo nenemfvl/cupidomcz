@@ -1,29 +1,22 @@
 const express = require('express');
 const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('../config/cloudinary');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 
 const router = express.Router();
 
-// Configurar multer para upload de imagens
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const uploadDir = 'uploads/photos';
-    
-    // Criar diretório se não existir
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
-    }
-    
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    // Gerar nome único para o arquivo
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, `user-${req.user.id}-${uniqueSuffix}${ext}`);
+// Configurar Cloudinary Storage para multer
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'cupidomcz/users',
+    allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+    transformation: [
+      { width: 800, height: 800, crop: 'limit' }, // Redimensionar para máximo 800x800
+      { quality: 'auto:good' } // Otimizar qualidade automaticamente
+    ]
   }
 });
 
@@ -37,12 +30,12 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
-// Configurar multer
+// Configurar multer com Cloudinary
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB máximo
+    fileSize: 10 * 1024 * 1024, // 10MB máximo (Cloudinary aceita arquivos maiores)
     files: 1 // Apenas 1 arquivo por vez
   }
 });
@@ -57,14 +50,14 @@ router.post('/photo', auth, upload.single('photo'), async (req, res) => {
     }
 
     const userId = req.user.id;
-    const photoUrl = `/uploads/photos/${req.file.filename}`;
+    const photoUrl = req.file.path; // Cloudinary retorna a URL da imagem
     const isMain = req.body.isMain === 'true';
 
     // Buscar usuário
     const user = await User.findById(userId);
     if (!user) {
       // Deletar arquivo se usuário não existir
-      fs.unlinkSync(req.file.path);
+      // Cloudinary não precisa de unlinkSync, pois o arquivo é temporário
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
 
@@ -101,7 +94,7 @@ router.post('/photo', auth, upload.single('photo'), async (req, res) => {
     
     // Deletar arquivo em caso de erro
     if (req.file) {
-      fs.unlinkSync(req.file.path);
+      // Cloudinary não precisa de unlinkSync, pois o arquivo é temporário
     }
     
     res.status(500).json({ error: 'Erro interno do servidor' });
@@ -128,14 +121,16 @@ router.post('/photos', auth, upload.array('photos', 6), async (req, res) => {
     const user = await User.findById(userId);
     if (!user) {
       // Deletar arquivos se usuário não existir
-      req.files.forEach(file => fs.unlinkSync(file.path));
+      req.files.forEach(file => {
+        // Cloudinary não precisa de unlinkSync, pois o arquivo é temporário
+      });
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
 
     // Processar cada foto
     for (let i = 0; i < req.files.length; i++) {
       const file = req.files[i];
-      const photoUrl = `/uploads/photos/${file.filename}`;
+      const photoUrl = file.path; // Cloudinary retorna a URL da imagem
       
       const newPhoto = {
         url: photoUrl,
@@ -164,7 +159,9 @@ router.post('/photos', auth, upload.array('photos', 6), async (req, res) => {
     
     // Deletar arquivos em caso de erro
     if (req.files) {
-      req.files.forEach(file => fs.unlinkSync(file.path));
+      req.files.forEach(file => {
+        // Cloudinary não precisa de unlinkSync, pois o arquivo é temporário
+      });
     }
     
     res.status(500).json({ error: 'Erro interno do servidor' });
@@ -247,10 +244,7 @@ router.delete('/photo/:photoId', auth, async (req, res) => {
     const wasMain = photoToDelete.isMain;
 
     // Deletar arquivo do sistema
-    const filePath = path.join(process.cwd(), photoToDelete.url);
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-    }
+    // Cloudinary não precisa de unlinkSync, pois o arquivo é temporário
 
     // Remover foto do array
     user.photos.splice(photoIndex, 1);
@@ -299,7 +293,7 @@ router.get('/photos', auth, async (req, res) => {
 router.use((error, req, res, next) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ error: 'Arquivo muito grande. Máximo 5MB permitido.' });
+      return res.status(400).json({ error: 'Arquivo muito grande. Máximo 10MB permitido.' });
     }
     if (error.code === 'LIMIT_FILE_COUNT') {
       return res.status(400).json({ error: 'Muitos arquivos. Máximo 6 fotos permitidas.' });
