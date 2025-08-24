@@ -59,7 +59,10 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/matches', require('./routes/matches'));
 app.use('/api/chat', require('./routes/chat'));
+
+console.log('🔧 Carregando rotas de upload...');
 app.use('/api/upload', require('./routes/upload'));
+console.log('✅ Rotas de upload carregadas com sucesso!');
 
 // Socket.IO para chat em tempo real
 io.on('connection', (socket) => {

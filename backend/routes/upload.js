@@ -15,6 +15,16 @@ router.get('/test', (req, res) => {
   res.json({ message: 'Rota de upload funcionando!', timestamp: new Date().toISOString() });
 });
 
+// Rota de upload simples para teste (sem Cloudinary)
+router.post('/photo-simple', auth, async (req, res) => {
+  console.log('📸 Teste de rota POST /photo-simple funcionando!');
+  res.json({ 
+    message: 'Rota POST funcionando!', 
+    timestamp: new Date().toISOString(),
+    note: 'Esta é uma rota de teste sem upload real'
+  });
+});
+
 try {
   console.log('🔧 Configurando Cloudinary Storage...');
   

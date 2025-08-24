@@ -43,11 +43,31 @@ const Profile: React.FC = () => {
     setIsUploading(true);
     setUploadProgress(0);
 
+    // PRIMEIRO: Testar se a rota POST está funcionando
+    try {
+      console.log('🧪 Testando rota POST simples...');
+      const token = localStorage.getItem('cupido_token');
+      const testResponse = await axios.post(`${API_BASE_URL}/upload/photo-simple`, {}, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      console.log('✅ Rota POST simples funcionando:', testResponse.data);
+    } catch (error) {
+      console.error('❌ Rota POST simples falhou:', error);
+      alert('Problema com rota POST. Verifique os logs do Railway.');
+      setIsUploading(false);
+      setUploadProgress(0);
+      return;
+    }
+
+    // SEGUNDO: Tentar o upload real
     const formData = new FormData();
     formData.append('photo', file);
 
     try {
       const token = localStorage.getItem('cupido_token');
+      console.log('📸 Tentando upload real...');
       const response = await axios.post(`${API_BASE_URL}/upload/photo`, formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -73,7 +93,7 @@ const Profile: React.FC = () => {
 
       alert('Foto enviada com sucesso!');
     } catch (error: any) {
-      console.error('Erro ao enviar foto:', error);
+      console.error('❌ Erro ao enviar foto:', error);
       alert(error.response?.data?.error || 'Erro ao enviar foto. Tente novamente.');
     } finally {
       setIsUploading(false);
