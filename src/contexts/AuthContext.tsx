@@ -144,19 +144,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const register = async (userData: Partial<User> & { password: string }) => {
     setIsLoading(true)
     try {
-      const response = await axios.post(`${API_URL}/auth/register`, userData)
+      console.log('🔐 Registrando usuário...')
+      
+      const response = await axios.post(`${API_URL}/auth/register`, userData, {
+        timeout: 30000 // 30 segundos de timeout
+      })
 
-      const { user, token } = response.data
+      console.log('✅ Resposta do registro:', response.data)
       
-      // Salvar token
-      localStorage.setItem('cupido_token', token)
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      const { user, token, requiresVerification } = response.data
       
-      setUser(user)
+      if (requiresVerification) {
+        console.log('📧 Verificação de email necessária')
+        // Não salvar token se precisar verificar email
+        setUser(null)
+        throw new Error('Verifique seu email para ativar sua conta')
+      }
+      
+      // Salvar token apenas se não precisar verificar
+      if (token) {
+        localStorage.setItem('cupido_token', token)
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        setUser(user)
+      }
+      
     } catch (error: any) {
+      console.error('❌ Erro no registro:', error)
+      
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Timeout: Servidor demorou para responder')
+      }
+      
       if (error.response?.data?.error) {
         throw new Error(error.response.data.error)
       }
+      
       throw new Error('Erro no registro')
     } finally {
       setIsLoading(false)
