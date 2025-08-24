@@ -90,15 +90,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Verificar se há usuário logado
     const checkAuth = async () => {
       const token = localStorage.getItem('cupido_token')
+      console.log('🔍 Verificando autenticação...', { token: token ? 'EXISTE' : 'NÃO EXISTE' })
+      
       if (token) {
         try {
+          console.log('🔐 Fazendo requisição para /auth/me...')
           const response = await axios.get(`${API_URL}/auth/me`)
+          console.log('✅ Usuário autenticado:', response.data.user)
           setUser(response.data.user)
-        } catch (error) {
-          console.error('Erro ao verificar autenticação:', error)
+        } catch (error: any) {
+          console.error('❌ Erro ao verificar autenticação:', error.response?.status, error.response?.data)
           localStorage.removeItem('cupido_token')
           delete axios.defaults.headers.common['Authorization']
         }
+      } else {
+        console.log('❌ Nenhum token encontrado no localStorage')
       }
       setIsLoading(false)
     }
@@ -109,19 +115,23 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const login = async (email: string, password: string) => {
     setIsLoading(true)
     try {
+      console.log('🔐 Fazendo login...')
       const response = await axios.post(`${API_URL}/auth/login`, {
         email,
         password
       })
 
       const { user, token } = response.data
+      console.log('✅ Login bem-sucedido:', { user: user.name, token: token ? 'EXISTE' : 'NÃO EXISTE' })
       
       // Salvar token
       localStorage.setItem('cupido_token', token)
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      console.log('💾 Token salvo no localStorage')
       
       setUser(user)
     } catch (error: any) {
+      console.error('❌ Erro no login:', error.response?.status, error.response?.data)
       if (error.response?.data?.error) {
         throw new Error(error.response.data.error)
       }
