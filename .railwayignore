@@ -1,0 +1,16 @@
+# Ignorar arquivos do frontend no Railway
+src/
+public/
+index.html
+vite.config.ts
+tsconfig.json
+tailwind.config.js
+postcss.config.js
+*.css
+*.tsx
+*.ts
+
+# Manter apenas o backend
+!backend/
+!package.json
+!railway.toml
