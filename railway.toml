@@ -2,12 +2,4 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "cd backend && npm start"
-healthcheckPath = "/health"
-healthcheckTimeout = 100
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 10
-
-# Configuração específica para o backend
-[build.environment]
-NODE_ENV = "production"
+startCommand = "npm start"
