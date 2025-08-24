@@ -10,6 +10,19 @@ const generateToken = (userId) => {
   return jwt.sign({ userId }, process.env.JWT_SECRET, { expiresIn: '30d' });
 };
 
+// @route   POST /api/auth/test
+// @desc    Endpoint de teste para ver dados recebidos
+// @access  Public
+router.post('/test', (req, res) => {
+  console.log('🧪 TESTE - DADOS RECEBIDOS:', JSON.stringify(req.body, null, 2));
+  res.json({
+    message: 'Dados recebidos com sucesso!',
+    receivedData: req.body,
+    headers: req.headers,
+    timestamp: new Date().toISOString()
+  });
+});
+
 // @route   POST /api/auth/register
 // @desc    Registrar novo usuário
 // @access  Public
