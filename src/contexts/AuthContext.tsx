@@ -1,0 +1,188 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import axios from 'axios'
+import { API_BASE_URL } from '../config/api'
+
+// Configurar base URL da API
+const API_URL = `${API_BASE_URL}/api`
+
+interface User {
+  _id: string
+  name: string
+  email: string
+  age: number
+  bio: string
+  photos: Array<{
+    _id: string
+    url: string
+    isMain: boolean
+    uploadedAt: string
+  }>
+  location: {
+    coordinates: [number, number]
+    address: {
+      neighborhood: string
+      city: string
+      state: string
+    }
+  }
+  interests: string[]
+  lookingFor: 'masculino' | 'feminino' | 'todos'
+  gender: 'masculino' | 'feminino' | 'não-binário' | 'prefiro não informar'
+  occupation?: string
+  education?: string
+  height?: number
+  bodyType?: string
+  smoking?: string
+  drinking?: string
+  hasChildren?: boolean
+  wantsChildren?: string
+  religion?: string
+  politicalViews?: string
+  isVerified: boolean
+  isPremium: boolean
+  lastActive: string
+  preferences: {
+    ageRange: {
+      min: number
+      max: number
+    }
+    maxDistance: number
+    showVerifiedOnly: boolean
+  }
+}
+
+interface AuthContextType {
+  user: User | null
+  login: (email: string, password: string) => Promise<void>
+  register: (userData: Partial<User> & { password: string }) => Promise<void>
+  logout: () => void
+  isLoading: boolean
+  updateUser: (updates: Partial<User>) => Promise<void>
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+export const useAuth = () => {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
+  }
+  return context
+}
+
+interface AuthProviderProps {
+  children: ReactNode
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Configurar axios para incluir token em todas as requisições
+  useEffect(() => {
+    const token = localStorage.getItem('cupido_token')
+    if (token) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    }
+  }, [])
+
+  useEffect(() => {
+    // Verificar se há usuário logado
+    const checkAuth = async () => {
+      const token = localStorage.getItem('cupido_token')
+      if (token) {
+        try {
+          const response = await axios.get(`${API_URL}/auth/me`)
+          setUser(response.data.user)
+        } catch (error) {
+          console.error('Erro ao verificar autenticação:', error)
+          localStorage.removeItem('cupido_token')
+          delete axios.defaults.headers.common['Authorization']
+        }
+      }
+      setIsLoading(false)
+    }
+
+    checkAuth()
+  }, [])
+
+  const login = async (email: string, password: string) => {
+    setIsLoading(true)
+    try {
+      const response = await axios.post(`${API_URL}/auth/login`, {
+        email,
+        password
+      })
+
+      const { user, token } = response.data
+      
+      // Salvar token
+      localStorage.setItem('cupido_token', token)
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      
+      setUser(user)
+    } catch (error: any) {
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error)
+      }
+      throw new Error('Erro no login')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const register = async (userData: Partial<User> & { password: string }) => {
+    setIsLoading(true)
+    try {
+      const response = await axios.post(`${API_URL}/auth/register`, userData)
+
+      const { user, token } = response.data
+      
+      // Salvar token
+      localStorage.setItem('cupido_token', token)
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+      
+      setUser(user)
+    } catch (error: any) {
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error)
+      }
+      throw new Error('Erro no registro')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const updateUser = async (updates: Partial<User>) => {
+    try {
+      const response = await axios.put(`${API_URL}/auth/me`, updates)
+      setUser(response.data.user)
+    } catch (error: any) {
+      if (error.response?.data?.error) {
+        throw new Error(error.response.data.error)
+      }
+      throw new Error('Erro ao atualizar perfil')
+    }
+  }
+
+  const logout = () => {
+    setUser(null)
+    localStorage.removeItem('cupido_token')
+    delete axios.defaults.headers.common['Authorization']
+  }
+
+  const value = {
+    user,
+    login,
+    register,
+    logout,
+    isLoading,
+    updateUser
+  }
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
