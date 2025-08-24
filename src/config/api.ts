@@ -1,14 +1,14 @@
 // Configuração da API para Vercel + Railway
-const isProduction = import.meta.env.PROD || false;
+const isProduction = process.env.NODE_ENV === 'production';
 
 // URL da API baseada no ambiente
 export const API_BASE_URL = isProduction
-  ? import.meta.env.VITE_API_URL || 'https://cupidomcz-backend-production.up.railway.app'
+  ? process.env.VITE_API_URL || 'https://cupidomcz-production.up.railway.app'
   : 'http://localhost:5000';
 
 // Configuração do Socket.IO
 export const SOCKET_URL = isProduction
-  ? import.meta.env.VITE_API_URL || 'https://cupidomcz-backend-production.up.railway.app'
+  ? process.env.VITE_API_URL || 'https://cupidomcz-production.up.railway.app'
   : 'http://localhost:5000';
 
 // Configuração de upload
