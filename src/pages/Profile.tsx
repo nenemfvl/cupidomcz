@@ -61,23 +61,9 @@ const Profile: React.FC = () => {
         },
       });
 
-      // Atualizar o usuário com a nova foto
-      if (response.data.photoUrl) {
-        const updatedUser = { ...user };
-        if (!updatedUser.photos) {
-          updatedUser.photos = [];
-        }
-        
-        // Se for a primeira foto, definir como principal
-        const isMain = updatedUser.photos.length === 0;
-        
-        updatedUser.photos.push({
-          url: response.data.photoUrl,
-          isMain,
-          uploadedAt: new Date().toISOString(),
-        });
-
-        await updateUser(updatedUser);
+      // Atualizar o usuário com os dados retornados pelo backend
+      if (response.data.user) {
+        await updateUser(response.data.user);
       }
 
       // Limpar o input de arquivo
@@ -97,14 +83,23 @@ const Profile: React.FC = () => {
 
   const setMainPhoto = async (photoIndex: number) => {
     try {
-      const updatedUser = { ...user };
-      if (updatedUser.photos) {
-        // Marcar todas as fotos como não principais
-        updatedUser.photos.forEach(photo => photo.isMain = false);
-        // Marcar a foto selecionada como principal
-        updatedUser.photos[photoIndex].isMain = true;
-        
-        await updateUser(updatedUser);
+      const photo = user.photos?.[photoIndex];
+      if (!photo || !photo._id) return;
+
+      const token = localStorage.getItem('cupido_token');
+      const response = await axios.put(
+        `${API_BASE_URL}/upload/photo/main/${photo._id}`,
+        {},
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      // Atualizar o usuário com os dados retornados pelo backend
+      if (response.data.user) {
+        await updateUser(response.data.user);
       }
     } catch (error) {
       console.error('Erro ao definir foto principal:', error);
@@ -116,20 +111,22 @@ const Profile: React.FC = () => {
     if (!confirm('Tem certeza que deseja excluir esta foto?')) return;
 
     try {
-      const updatedUser = { ...user };
-      if (updatedUser.photos) {
-        const deletedPhoto = updatedUser.photos[photoIndex];
-        
-        // Se for a foto principal e houver outras fotos, definir a primeira como principal
-        if (deletedPhoto.isMain && updatedUser.photos.length > 1) {
-          const nextPhotoIndex = photoIndex === 0 ? 1 : 0;
-          updatedUser.photos[nextPhotoIndex].isMain = true;
+      const photo = user.photos?.[photoIndex];
+      if (!photo || !photo._id) return;
+
+      const token = localStorage.getItem('cupido_token');
+      const response = await axios.delete(
+        `${API_BASE_URL}/upload/photo/${photo._id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
         }
-        
-        // Remover a foto
-        updatedUser.photos.splice(photoIndex, 1);
-        
-        await updateUser(updatedUser);
+      );
+
+      // Atualizar o usuário com os dados retornados pelo backend
+      if (response.data.user) {
+        await updateUser(response.data.user);
         alert('Foto excluída com sucesso!');
       }
     } catch (error) {

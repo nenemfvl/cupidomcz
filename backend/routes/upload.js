@@ -46,58 +46,33 @@ const upload = multer({
 router.post('/photo', auth, upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'Nenhuma foto foi enviada' });
+      return res.status(400).json({ error: 'Nenhuma foto enviada.' });
     }
 
-    const userId = req.user.id;
-    const photoUrl = req.file.path; // Cloudinary retorna a URL da imagem
-    const isMain = req.body.isMain === 'true';
-
-    // Buscar usuário
-    const user = await User.findById(userId);
+    const user = await User.findById(req.user.id);
     if (!user) {
-      // Deletar arquivo se usuário não existir
-      // Cloudinary não precisa de unlinkSync, pois o arquivo é temporário
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
     }
 
-    // Se for foto principal, desmarcar outras como principais
-    if (isMain) {
-      user.photos.forEach(photo => {
-        photo.isMain = false;
-      });
-    }
+    const photoUrl = req.file.path; // URL do Cloudinary
 
-    // Adicionar nova foto
-    const newPhoto = {
-      url: photoUrl,
-      isMain: isMain,
-      uploadedAt: new Date()
-    };
+    // Se for a primeira foto, definir como principal
+    const isMain = user.photos.length === 0;
 
-    user.photos.push(newPhoto);
-
-    // Se for a primeira foto, marcar como principal
-    if (user.photos.length === 1) {
-      user.photos[0].isMain = true;
-    }
-
+    user.photos.push({ url: photoUrl, isMain });
     await user.save();
 
-    res.json({
-      message: 'Foto enviada com sucesso!',
-      photo: newPhoto
-    });
+    // Retornar o usuário atualizado (excluindo campos sensíveis)
+    const updatedUser = await User.findById(req.user.id).select('-password -verificationToken -verificationTokenExpires');
 
+    res.status(200).json({ 
+      message: 'Foto enviada com sucesso!', 
+      user: updatedUser,
+      photoUrl: photoUrl 
+    });
   } catch (error) {
-    console.error('Erro no upload da foto:', error);
-    
-    // Deletar arquivo em caso de erro
-    if (req.file) {
-      // Cloudinary não precisa de unlinkSync, pois o arquivo é temporário
-    }
-    
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('Erro ao fazer upload da foto:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao fazer upload da foto.' });
   }
 });
 
@@ -168,101 +143,76 @@ router.post('/photos', auth, upload.array('photos', 6), async (req, res) => {
   }
 });
 
-// @route   PUT /api/upload/photo/:photoId/main
-// @desc    Definir uma foto como principal
-// @access  Private
-router.put('/photo/:photoId/main', auth, async (req, res) => {
+// Rota para definir foto principal
+router.put('/photo/main/:photoId', auth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const photoId = req.params.photoId;
+    const { photoId } = req.params;
+    const user = await User.findById(req.user.id);
 
-    // Buscar usuário
-    const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
     }
 
-    // Encontrar a foto
-    const photoIndex = user.photos.findIndex(photo => 
-      photo._id.toString() === photoId
-    );
-
-    if (photoIndex === -1) {
-      return res.status(404).json({ error: 'Foto não encontrada' });
-    }
-
-    // Desmarcar todas as fotos como principais
+    // Resetar todas as fotos para isMain: false
     user.photos.forEach(photo => {
       photo.isMain = false;
     });
 
-    // Marcar a foto selecionada como principal
-    user.photos[photoIndex].isMain = true;
+    // Encontrar e definir a nova foto principal
+    const targetPhoto = user.photos.id(photoId);
+    if (!targetPhoto) {
+      return res.status(404).json({ error: 'Foto não encontrada.' });
+    }
+    targetPhoto.isMain = true;
 
     await user.save();
 
-    res.json({
-      message: 'Foto definida como principal com sucesso!',
-      photo: user.photos[photoIndex]
-    });
-
+    // Retornar o usuário atualizado
+    const updatedUser = await User.findById(req.user.id).select('-password -verificationToken -verificationTokenExpires');
+    res.status(200).json({ message: 'Foto principal atualizada com sucesso!', user: updatedUser });
   } catch (error) {
     console.error('Erro ao definir foto principal:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    res.status(500).json({ error: 'Erro interno do servidor ao definir foto principal.' });
   }
 });
 
-// @route   DELETE /api/upload/photo/:photoId
-// @desc    Deletar uma foto
-// @access  Private
+// Rota para excluir foto
 router.delete('/photo/:photoId', auth, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const photoId = req.params.photoId;
+    const { photoId } = req.params;
+    const user = await User.findById(req.user.id);
 
-    // Buscar usuário
-    const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+      return res.status(404).json({ error: 'Usuário não encontrado.' });
     }
 
-    // Encontrar a foto
-    const photoIndex = user.photos.findIndex(photo => 
-      photo._id.toString() === photoId
-    );
+    const photoIndex = user.photos.findIndex(photo => photo._id.toString() === photoId);
 
     if (photoIndex === -1) {
-      return res.status(404).json({ error: 'Foto não encontrada' });
-    }
-
-    // Verificar se é a única foto
-    if (user.photos.length === 1) {
-      return res.status(400).json({ error: 'Não é possível deletar a única foto do perfil' });
+      return res.status(404).json({ error: 'Foto não encontrada.' });
     }
 
     const photoToDelete = user.photos[photoIndex];
-    const wasMain = photoToDelete.isMain;
 
-    // Deletar arquivo do sistema
-    // Cloudinary não precisa de unlinkSync, pois o arquivo é temporário
+    // Remover do Cloudinary
+    const publicId = photoToDelete.url.split('/').pop().split('.')[0];
+    await cloudinary.uploader.destroy(`cupidomcz/users/${publicId}`);
 
-    // Remover foto do array
     user.photos.splice(photoIndex, 1);
 
-    // Se a foto deletada era principal, definir a primeira como principal
-    if (wasMain && user.photos.length > 0) {
+    // Se a foto excluída era a principal e ainda há fotos, definir a primeira como principal
+    if (photoToDelete.isMain && user.photos.length > 0) {
       user.photos[0].isMain = true;
     }
 
     await user.save();
 
-    res.json({
-      message: 'Foto deletada com sucesso!'
-    });
-
+    // Retornar o usuário atualizado
+    const updatedUser = await User.findById(req.user.id).select('-password -verificationToken -verificationTokenExpires');
+    res.status(200).json({ message: 'Foto excluída com sucesso!', user: updatedUser });
   } catch (error) {
-    console.error('Erro ao deletar foto:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('Erro ao excluir foto:', error);
+    res.status(500).json({ error: 'Erro interno do servidor ao excluir foto.' });
   }
 });
 
