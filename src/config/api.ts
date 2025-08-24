@@ -1,15 +1,14 @@
 // Configuração da API para Vercel + Railway
-const isProduction = process.env.NODE_ENV === 'production';
+// Sempre usar produção para funcionar no Vercel
 
-// URL da API baseada no ambiente
-export const API_BASE_URL = isProduction
-  ? process.env.VITE_API_URL || 'https://cupidomcz-production.up.railway.app'
-  : 'http://localhost:5000';
+// URL da API - sempre usar Railway
+export const API_BASE_URL = 'https://cupidomcz-production.up.railway.app';
+
+// Para desenvolvimento, usar Railway também
+export const API_BASE_URL_DEV = 'https://cupidomcz-production.up.railway.app';
 
 // Configuração do Socket.IO
-export const SOCKET_URL = isProduction
-  ? process.env.VITE_API_URL || 'https://cupidomcz-production.up.railway.app'
-  : 'http://localhost:5000';
+export const SOCKET_URL = 'https://cupidomcz-production.up.railway.app';
 
 // Configuração de upload
 export const UPLOAD_URL = `${API_BASE_URL}/api/upload`;

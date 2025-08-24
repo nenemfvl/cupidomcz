@@ -2,9 +2,11 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const path = require('path');
 
-// Carregar variáveis de ambiente
-dotenv.config({ path: '../config.env' });
+// Carregar variáveis de ambiente - tentar múltiplos caminhos
+const envPath = path.resolve(__dirname, '../config.env');
+dotenv.config({ path: envPath });
 
 const app = express();
 
