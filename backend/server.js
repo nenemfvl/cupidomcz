@@ -151,6 +151,112 @@ app.get('/api/chat/conversations', async (req, res) => {
   }
 });
 
+// Rota de verificação de autenticação (solução temporária)
+app.get('/api/auth/me', async (req, res) => {
+  try {
+    // Retornar usuário de teste para verificação de auth
+    res.json({
+      user: {
+        _id: '1',
+        name: 'Usuário Teste',
+        email: 'teste@teste.com',
+        age: 25,
+        bio: 'Usuário de teste',
+        photos: [{ url: 'https://via.placeholder.com/300x400', isMain: true }],
+        location: { coordinates: [-35.7351, -9.6498] },
+        interests: ['música', 'praia'],
+        lookingFor: 'todos',
+        gender: 'não-binário',
+        isVerified: true,
+        isPremium: false,
+        lastActive: new Date().toISOString()
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro ao verificar auth:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Rotas sem prefixo /api (que o frontend está chamando)
+app.get('/discovery', async (req, res) => {
+  try {
+    res.json({
+      message: 'Discovery funcionando! (rota sem /api)',
+      users: [
+        {
+          _id: '1',
+          name: 'Maria Silva',
+          age: 25,
+          bio: 'Gosto de praia e música',
+          photos: [{ url: 'https://via.placeholder.com/300x400', isMain: true }],
+          location: { coordinates: [-35.7351, -9.6498] }
+        },
+        {
+          _id: '2', 
+          name: 'João Santos',
+          age: 28,
+          bio: 'Amo esportes e viagens',
+          photos: [{ url: 'https://via.placeholder.com/300x400', isMain: true }],
+          location: { coordinates: [-35.7351, -9.6498] }
+        }
+      ],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro no discovery (sem /api):', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+app.get('/discovery/matches', async (req, res) => {
+  try {
+    res.json({
+      message: 'Matches funcionando! (rota sem /api)',
+      matches: [
+        {
+          _id: '1',
+          user: {
+            _id: '1',
+            name: 'Maria Silva',
+            photos: [{ url: 'https://via.placeholder.com/300x400', isMain: true }]
+          },
+          matchedAt: new Date().toISOString()
+        }
+      ],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro nos matches (sem /api):', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+app.get('/chat/conversations', async (req, res) => {
+  try {
+    res.json({
+      message: 'Chat funcionando! (rota sem /api)',
+      conversations: [
+        {
+          _id: '1',
+          user: {
+            _id: '1',
+            name: 'Maria Silva',
+            photos: [{ url: 'https://via.placeholder.com/300x400', isMain: true }]
+          },
+          lastMessage: 'Oi! Como você está?',
+          lastMessageAt: new Date().toISOString()
+        }
+      ],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro no chat (sem /api):', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // Rota de teste
 app.get('/api/test', (req, res) => {
   res.json({ 
