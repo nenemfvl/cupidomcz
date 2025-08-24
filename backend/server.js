@@ -70,6 +70,87 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+// Rota de discovery (solução temporária)
+app.get('/api/discovery', async (req, res) => {
+  try {
+    // Retornar dados de teste para discovery
+    res.json({
+      message: 'Discovery funcionando! (rota temporária)',
+      users: [
+        {
+          _id: '1',
+          name: 'Maria Silva',
+          age: 25,
+          bio: 'Gosto de praia e música',
+          photos: [{ url: 'https://via.placeholder.com/300x400', isMain: true }],
+          location: { coordinates: [-35.7351, -9.6498] }
+        },
+        {
+          _id: '2', 
+          name: 'João Santos',
+          age: 28,
+          bio: 'Amo esportes e viagens',
+          photos: [{ url: 'https://via.placeholder.com/300x400', isMain: true }],
+          location: { coordinates: [-35.7351, -9.6498] }
+        }
+      ],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro no discovery:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Rota de matches (solução temporária)
+app.get('/api/discovery/matches', async (req, res) => {
+  try {
+    res.json({
+      message: 'Matches funcionando! (rota temporária)',
+      matches: [
+        {
+          _id: '1',
+          user: {
+            _id: '1',
+            name: 'Maria Silva',
+            photos: [{ url: 'https://via.placeholder.com/300x400', isMain: true }]
+          },
+          matchedAt: new Date().toISOString()
+        }
+      ],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro nos matches:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// Rota de chat (solução temporária)
+app.get('/api/chat/conversations', async (req, res) => {
+  try {
+    res.json({
+      message: 'Chat funcionando! (rota temporária)',
+      conversations: [
+        {
+          _id: '1',
+          user: {
+            _id: '1',
+            name: 'Maria Silva',
+            photos: [{ url: 'https://via.placeholder.com/300x400', isMain: true }]
+          },
+          lastMessage: 'Oi! Como você está?',
+          lastMessageAt: new Date().toISOString()
+        }
+      ],
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Erro no chat:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // Rota de teste
 app.get('/api/test', (req, res) => {
   res.json({ 
