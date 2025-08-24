@@ -117,25 +117,30 @@ router.post('/register', async (req, res) => {
     });
 
     await user.save();
+    console.log('✅ Usuário criado com sucesso!');
 
-    // Enviar email de verificação
-    const emailSent = await sendVerificationEmail(email, name, verificationToken);
-    if (!emailSent) {
-      console.log('⚠️ Usuário criado mas email não foi enviado:', email);
-    }
-
-    // Gerar token de acesso (temporário até verificação)
-    const token = generateToken(user._id);
-
-    // Retornar usuário (sem senha) e token
+    // Responder IMEDIATAMENTE ao usuário
     const userResponse = user.toObject();
     delete userResponse.password;
 
     res.status(201).json({
       message: 'Usuário registrado com sucesso! Verifique seu email para ativar sua conta.',
       user: userResponse,
-      token,
       requiresVerification: true
+    });
+
+    // Enviar email em background (não bloquear a resposta)
+    setImmediate(async () => {
+      try {
+        const emailSent = await sendVerificationEmail(email, name, verificationToken);
+        if (emailSent) {
+          console.log('✅ Email de verificação enviado para:', email);
+        } else {
+          console.log('⚠️ Usuário criado mas email não foi enviado:', email);
+        }
+      } catch (error) {
+        console.error('❌ Erro ao enviar email em background:', error);
+      }
     });
 
   } catch (error) {
