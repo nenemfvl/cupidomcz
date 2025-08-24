@@ -1,48 +1,36 @@
-const isProduction = false; // Temporariamente fixo para desenvolvimento
+// Configuração da API para Vercel + Railway
+const isProduction = import.meta.env.PROD || false;
 
 // URL da API baseada no ambiente
-export const API_BASE_URL = isProduction 
-  ? 'https://cupidomcz-backend.onrender.com' 
+export const API_BASE_URL = isProduction
+  ? import.meta.env.VITE_API_URL || 'https://cupidomcz-backend-production.up.railway.app'
   : 'http://localhost:5000';
 
-// Configurações da API
-export const API_CONFIG = {
-  baseURL: API_BASE_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-};
+// Configuração do Socket.IO
+export const SOCKET_URL = isProduction
+  ? import.meta.env.VITE_API_URL || 'https://cupidomcz-backend-production.up.railway.app'
+  : 'http://localhost:5000';
 
-// Configurações do Socket.IO
-export const SOCKET_CONFIG = {
-  url: isProduction 
-    ? 'https://cupidomcz-backend.onrender.com' 
-    : 'http://localhost:5000',
-  options: {
-    transports: ['websocket', 'polling'],
-    autoConnect: true,
-    reconnection: true,
-    reconnectionDelay: 1000,
-    reconnectionAttempts: 5,
-  },
-};
+// Configuração de upload
+export const UPLOAD_URL = `${API_BASE_URL}/api/upload`;
 
-// Configurações de upload
-export const UPLOAD_CONFIG = {
-  maxFileSize: 5 * 1024 * 1024, // 5MB
-  allowedTypes: ['image/jpeg', 'image/png', 'image/webp'],
-  maxFiles: 6,
-};
-
-// Configurações de geolocalização (Maceió)
+// Configurações específicas para Maceió
 export const MACEIO_CONFIG = {
-  center: {
-    lat: -9.6498,
-    lng: -35.7089,
-  },
-  radius: 50000, // 50km
   city: 'Maceió',
   state: 'AL',
   country: 'Brasil',
+  coordinates: [-35.7351, -9.6498], // [longitude, latitude]
+  timezone: 'America/Maceio'
+};
+
+// Configurações da aplicação
+export const APP_CONFIG = {
+  name: 'Cupido Maceió',
+  version: '1.0.0',
+  description: 'Rede social de namoro para Maceió',
+  maxPhotos: 6,
+  maxBioLength: 500,
+  minAge: 18,
+  maxAge: 100,
+  maxDistance: 50 // km
 };
