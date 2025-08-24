@@ -68,8 +68,19 @@ const Register: React.FC = () => {
         wantsChildren: 'talvez' // Valor válido do enum
       };
 
-      await register(userData);
-      navigate('/discover');
+      const result = await register(userData);
+      
+      if (result?.requiresVerification) {
+        // Redirecionar para login com mensagem de sucesso
+        navigate('/login', { 
+          state: { 
+            message: 'Conta criada com sucesso! Verifique seu email para ativar sua conta.' 
+          } 
+        });
+      } else {
+        // Usuário verificado, ir para discover
+        navigate('/discover');
+      }
     } catch (err: any) {
       setError(err.message || 'Erro no registro');
     } finally {

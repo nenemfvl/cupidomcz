@@ -54,7 +54,7 @@ interface User {
 interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<void>
-  register: (userData: Partial<User> & { password: string }) => Promise<void>
+  register: (userData: Partial<User> & { password: string }) => Promise<{ success: boolean; requiresVerification?: boolean; message?: string; user?: User } | undefined>
   logout: () => void
   isLoading: boolean
   updateUser: (updates: Partial<User>) => Promise<void>
@@ -152,13 +152,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       console.log('✅ Resposta do registro:', response.data)
       
-      const { user, token, requiresVerification } = response.data
+      const { user, token, requiresVerification, message } = response.data
       
       if (requiresVerification) {
         console.log('📧 Verificação de email necessária')
-        // Não salvar token se precisar verificar email
+        // Redirecionar para login com mensagem de sucesso
         setUser(null)
-        throw new Error('Verifique seu email para ativar sua conta')
+        // Em vez de throw error, vamos retornar sucesso
+        return { success: true, requiresVerification: true, message }
       }
       
       // Salvar token apenas se não precisar verificar
@@ -166,6 +167,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         localStorage.setItem('cupido_token', token)
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
         setUser(user)
+        return { success: true, user }
       }
       
     } catch (error: any) {
