@@ -58,7 +58,7 @@ const Register: React.FC = () => {
         lookingFor: formData.lookingFor as 'masculino' | 'feminino' | 'todos',
         bio: formData.bio,
         location: {
-          coordinates: [-35.7089, -9.6498] as [number, number], // Coordenadas de Maceió
+          coordinates: [-35.7356, -9.6498] as [number, number], // Coordenadas válidas de Maceió
           address: {
             neighborhood: formData.neighborhood,
             city: formData.city,
