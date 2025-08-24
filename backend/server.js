@@ -43,6 +43,33 @@ app.post('/api/auth-test', (req, res) => {
   });
 });
 
+// Rota de login diretamente no servidor (solução temporária)
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    
+    // Log para debug
+    console.log('🔐 LOGIN - Dados recebidos:', { email, password: password ? '***' : 'NÃO FORNECIDO' });
+    
+    // Validação básica
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+    }
+    
+    // Por enquanto, retornar sucesso para teste
+    res.json({
+      message: 'Login funcionando! (rota temporária)',
+      user: { email, name: 'Usuário Teste' },
+      token: 'token_temporario_' + Date.now(),
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Erro no login:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 // Rota de teste
 app.get('/api/test', (req, res) => {
   res.json({ 
