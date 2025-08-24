@@ -147,7 +147,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('🔐 Registrando usuário...')
       
       const response = await axios.post(`${API_URL}/auth/register`, userData, {
-        timeout: 30000 // 30 segundos de timeout
+        timeout: 120000 // 2 minutos de timeout
       })
 
       console.log('✅ Resposta do registro:', response.data)
@@ -172,7 +172,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.error('❌ Erro no registro:', error)
       
       if (error.code === 'ECONNABORTED') {
-        throw new Error('Timeout: Servidor demorou para responder')
+        throw new Error('Timeout: Servidor demorou para responder. Tente novamente.')
       }
       
       if (error.response?.data?.error) {
