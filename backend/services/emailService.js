@@ -2,7 +2,7 @@ const nodemailer = require('nodemailer');
 
 // Configuração do transporter (Gmail) com configurações robustas
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
   port: 587,
   secure: false, // true para 465, false para outras portas
   auth: {
@@ -10,9 +10,9 @@ const transporter = nodemailer.createTransport({
     pass: process.env.EMAIL_PASS
   },
   // Configurações de timeout e retry
-  connectionTimeout: 120000, // 2 minutos
-  greetingTimeout: 60000,    // 1 minuto
-  socketTimeout: 120000,     // 2 minutos
+  connectionTimeout: 180000, // 3 minutos
+  greetingTimeout: 90000,    // 1.5 minutos
+  socketTimeout: 180000,     // 3 minutos
   // Configurações de TLS
   tls: {
     rejectUnauthorized: false,
@@ -21,7 +21,10 @@ const transporter = nodemailer.createTransport({
   // Configurações de pool
   pool: true,
   maxConnections: 5,
-  maxMessages: 100
+  maxMessages: 100,
+  // Configurações de retry
+  maxConnections: 1,
+  pool: false
 });
 
 // Verificar conexão

@@ -10,6 +10,7 @@ import Profile from './pages/Profile'
 import Discover from './pages/Discover'
 import Matches from './pages/Matches'
 import Chat from './pages/Chat'
+import VerifyEmail from './pages/VerifyEmail'
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/profile" element={<Profile />} />
               <Route path="/discover" element={<Discover />} />
               <Route path="/matches" element={<Matches />} />
